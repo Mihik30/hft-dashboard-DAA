@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>HFT Arbitrage Detection & Optimization System</title>
+<link rel="stylesheet" href="css/main.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="logo">
+        <span class="logo-bracket">[</span>
+        <span class="logo-text">HFT</span>
+        <span class="logo-sub">ARBITRAGE</span>
+        <span class="logo-bracket">]</span>
+      </div>
+      <div class="status-pills">
+        <span class="pill pill-live" id="sim-status">LIVE</span>
+        <span class="pill pill-info" id="algo-status">BELLMAN-FORD ACTIVE</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="metric-mini"><span class="mm-label">tick</span><span class="mm-val" id="tick-counter">0</span></div>
+      <div class="metric-mini"><span class="mm-label">latency</span><span class="mm-val" id="latency-val">0.3us</span></div>
+      <div class="metric-mini"><span class="mm-label">edges</span><span class="mm-val" id="edge-count">20</span></div>
+      <button class="btn-ctrl" id="btn-pause" onclick="window.sim.togglePause()">Pause</button>
+      <button class="btn-ctrl" id="btn-speed" onclick="window.sim.cycleSpeed()">1x Speed</button>
+      <button class="btn-ctrl btn-reset" onclick="window.sim.reset()">Reset</button>
+    </div>
+  </header>
+
+  <main class="grid-layout">
+    <div class="col-left">
+      <section class="metrics-row">
+        <div class="metric-card">
+          <div class="mc-label">Opportunities</div>
+          <div class="mc-value green" id="m-opp">0</div>
+          <div class="mc-sub">arbitrage cycles found</div>
+        </div>
+        <div class="metric-card">
+          <div class="mc-label">Best profit</div>
+          <div class="mc-value amber" id="m-best">0.0000%</div>
+          <div class="mc-sub">this session</div>
+        </div>
+        <div class="metric-card">
+          <div class="mc-label">BF iterations</div>
+          <div class="mc-value blue" id="m-iter">0</div>
+          <div class="mc-sub">V-1 relaxations done</div>
+        </div>
+        <div class="metric-card">
+          <div class="mc-label">Neg. cycles</div>
+          <div class="mc-value red" id="m-neg">0</div>
+          <div class="mc-sub">confirmed by Vth pass</div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-prices">
+        <div class="panel-header">
+          <span class="panel-title">Live price stream - log-weight edges</span>
+          <div class="panel-controls">
+            <button class="tag-btn active" onclick="togglePair(this,'NSE-BSE')">NSE&lt;-&gt;BSE</button>
+            <button class="tag-btn active" onclick="togglePair(this,'BSE-MCX')">BSE&lt;-&gt;MCX</button>
+            <button class="tag-btn active" onclick="togglePair(this,'MCX-CME')">MCX&lt;-&gt;CME</button>
+            <button class="tag-btn active" onclick="togglePair(this,'NSE-CME')">NSE&lt;-&gt;CME</button>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="priceChart"></canvas>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-bf">
+        <div class="panel-header">
+          <span class="panel-title">Phase 1 - Bellman-Ford algorithm (step-through)</span>
+          <div class="panel-controls">
+            <button class="btn-sm" onclick="window.bfStepper.prev()">Prev</button>
+            <button class="btn-sm" onclick="window.bfStepper.next()">Next</button>
+            <button class="btn-sm" onclick="window.bfStepper.auto()">Auto</button>
+          </div>
+        </div>
+        <div class="bf-layout">
+          <div class="bf-steps" id="bf-steps"></div>
+          <div class="bf-detail" id="bf-detail">
+            <div class="bf-pseudocode" id="bf-pseudo"></div>
+            <div class="bf-matrix" id="bf-matrix-wrap"></div>
+          </div>
+        </div>
+        <div class="bf-progress">
+          <div class="bf-progress-track">
+            <div class="bf-progress-fill" id="bf-progress-fill"></div>
+          </div>
+          <span class="bf-progress-label" id="bf-progress-label">Step 0 / 5</span>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-log">
+        <div class="panel-header">
+          <span class="panel-title">System log</span>
+          <span class="log-count" id="log-count">0 entries</span>
+        </div>
+        <div class="log-box" id="log-box"></div>
+      </section>
+    </div>
+
+    <div class="col-right">
+      <section class="panel panel-graph" id="panel-graph">
+        <div class="panel-header">
+          <span class="panel-title">Exchange network graph - Obsidian-style interaction</span>
+          <div class="panel-controls">
+            <button class="tag-btn active" id="btn-show-arb" onclick="toggleArbHighlight()">Show arbitrage path</button>
+            <button class="tag-btn" id="btn-show-weights" onclick="toggleWeights()">Edge weights</button>
+            <button class="tag-btn" onclick="graphFitCycle()">Fit active cycle</button>
+            <button class="tag-btn" onclick="graphRelayout()">Re-layout</button>
+            <button class="tag-btn" onclick="graphResetView()">Reset view</button>
+            <button class="tag-btn active" id="btn-toggle-states" onclick="toggleStateNodes()">State nodes</button>
+          </div>
+        </div>
+        <div id="netGraph" aria-label="interactive graph"></div>
+        <div class="graph-legend">
+          <span class="legend-item"><span class="legend-dot green"></span> Arbitrage path</span>
+          <span class="legend-item"><span class="legend-dot amber"></span> Active edge</span>
+          <span class="legend-item"><span class="legend-dot gray"></span> Inactive</span>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-opt">
+        <div class="panel-header">
+          <span class="panel-title">Phase 2 - Optimization</span>
+          <div class="panel-controls">
+            <button class="tag-btn active" id="tab-fw" onclick="switchOptTab('fw')">Floyd-Warshall</button>
+            <button class="tag-btn" id="tab-pq" onclick="switchOptTab('pq')">Priority Queue</button>
+            <button class="tag-btn" id="tab-dp" onclick="switchOptTab('dp')">DP table</button>
+          </div>
+        </div>
+        <div id="opt-fw" class="opt-panel">
+          <div class="fw-label">All-pairs shortest path matrix (log-weights) - blue = optimal, green = profit cycle</div>
+          <div class="fw-matrix-wrap" id="fw-matrix"></div>
+        </div>
+        <div id="opt-pq" class="opt-panel" style="display:none">
+          <div class="pq-header">
+            <span>Rank</span><span>Path</span><span>Profit</span><span>Bar</span>
+          </div>
+          <div id="pq-list"></div>
+        </div>
+        <div id="opt-dp" class="opt-panel" style="display:none">
+          <div class="fw-label">DP: best single-hop profit from each exchange</div>
+          <div id="dp-table"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-cx">
+        <div class="panel-header">
+          <span class="panel-title">Complexity analysis + arbitrage proof</span>
+        </div>
+        <div class="cx-grid">
+          <div class="cx-card">
+            <div class="cx-name">Bellman-Ford</div>
+            <div class="cx-formula">O(V * E)</div>
+            <div class="cx-bar-wrap"><div class="cx-bar" style="width:60%;background:#378ADD"></div></div>
+            <div class="cx-use">Negative cycle detection</div>
+          </div>
+          <div class="cx-card">
+            <div class="cx-name">Floyd-Warshall</div>
+            <div class="cx-formula">O(V^3)</div>
+            <div class="cx-bar-wrap"><div class="cx-bar" style="width:85%;background:#7F77DD"></div></div>
+            <div class="cx-use">All-pairs shortest path</div>
+          </div>
+          <div class="cx-card">
+            <div class="cx-name">Dijkstra</div>
+            <div class="cx-formula">O(E log V)</div>
+            <div class="cx-bar-wrap"><div class="cx-bar" style="width:40%;background:#639922"></div></div>
+            <div class="cx-use">Best path (pos. weights)</div>
+          </div>
+          <div class="cx-card">
+            <div class="cx-name">Heap / PQ</div>
+            <div class="cx-formula">O(log n)</div>
+            <div class="cx-bar-wrap"><div class="cx-bar" style="width:20%;background:#BA7517"></div></div>
+            <div class="cx-use">Greedy selection</div>
+          </div>
+        </div>
+        <div class="proof-box">
+          <div class="proof-title">Arbitrage via log-weight transformation</div>
+          <div class="proof-line">For a cycle A -&gt; B -&gt; C -&gt; A with rates r<sub>AB</sub>, r<sub>BC</sub>, r<sub>CA</sub>:</div>
+          <div class="proof-formula">Profit = r<sub>AB</sub> * r<sub>BC</sub> * r<sub>CA</sub> - 1</div>
+          <div class="proof-line">Taking logarithms: set w<sub>XY</sub> = -log(r<sub>XY</sub>)</div>
+          <div class="proof-formula">Arbitrage iff sum(w<sub>i</sub>) &lt; 0 (negative cycle)</div>
+          <div class="proof-line">Bellman-Ford detects this in V-1 relaxations, confirms in the Vth pass.</div>
+          <div class="proof-live">Current best cycle weight: <span class="proof-live-val" id="proof-live-val">-</span></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div id="tooltip" class="tooltip"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+<script src="js/simulation.js"></script>
+<script src="js/graph.js"></script>
+<script src="js/bellmanford.js"></script>
+<script src="js/optimizer.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
