@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Floyd-Warshall Algorithm Interactive Simulator</title>
+<link rel="stylesheet" href="css/floyd-warshall.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<div class="page-shell">
+  <header class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Algorithm Laboratory</p>
+      <h1>Floyd-Warshall Algorithm Interactive Simulator</h1>
+      <p class="subtitle">
+        Step through how Floyd-Warshall finds the shortest path between all pairs of vertices
+        by testing whether each node improves every source-to-destination path.
+      </p>
+    </div>
+    <div class="hero-stat">
+      <span class="stat-label">Traversal</span>
+      <span class="stat-value" id="step-indicator">Initial State</span>
+      <span class="stat-sub" id="loop-indicator">k = -, i = -, j = -</span>
+    </div>
+  </header>
+
+  <section class="panel controls-panel">
+    <div class="panel-header">
+      <div>
+        <p class="panel-kicker">Top Controls</p>
+        <h2>Controls and Explanations</h2>
+      </div>
+      <p class="panel-copy">Step through all three nested loops or let playback run automatically.</p>
+    </div>
+
+    <div class="controls-bar">
+      <div class="button-row">
+        <button class="control-btn" id="prev-step" type="button">Previous Step</button>
+        <button class="control-btn control-btn-primary" id="play-pause" type="button">Play</button>
+        <button class="control-btn" id="next-step" type="button">Next Step</button>
+        <button class="control-btn control-btn-ghost" id="reset-steps" type="button">Reset</button>
+      </div>
+      <div class="progress-box">
+        <span class="progress-label">Progress</span>
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <span class="progress-count" id="progress-count">Step 0 / 64</span>
+      </div>
+    </div>
+
+    <div class="status-box" id="status-box" aria-live="polite"></div>
+  </section>
+
+  <main class="content-grid">
+    <section class="panel graph-panel">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Left Panel</p>
+          <h2>Graph Visualization</h2>
+        </div>
+        <p class="panel-copy">Directed weighted edges from a teaching matrix selected to show real updates.</p>
+      </div>
+      <div class="graph-stage">
+        <svg id="fw-graph" viewBox="0 0 520 380" role="img" aria-label="Directed weighted graph for Floyd-Warshall simulation"></svg>
+      </div>
+      <div class="legend">
+        <span><span class="legend-swatch legend-node"></span>Active nodes</span>
+        <span><span class="legend-swatch legend-current"></span>Current distance</span>
+        <span><span class="legend-swatch legend-via"></span>Via candidate</span>
+        <span><span class="legend-swatch legend-update"></span>Relaxed update</span>
+      </div>
+    </section>
+
+    <section class="panel matrix-panel">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Right Panel</p>
+          <h2>Distance Matrix</h2>
+        </div>
+        <p class="panel-copy">A demonstrative 4x4 matrix that visibly changes after key `k, i, j` evaluations.</p>
+      </div>
+      <div class="matrix-wrap">
+        <table class="matrix-table" id="matrix-table" aria-live="polite"></table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="js/floyd-warshall.js"></script>
+</body>
+</html>
